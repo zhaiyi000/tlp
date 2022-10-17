@@ -1,0 +1,6 @@
+.ipynb_checkpoints/
+__pycache__/
+*.swp
+.vscode
+gpt_model*.pt
+*.log
