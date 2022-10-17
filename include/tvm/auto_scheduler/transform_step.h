@@ -171,6 +171,7 @@ class StepNode : public Object {
    * \param writer The output JSONWriter.
    */
   virtual void WriteToRecord(dmlc::JSONWriter* writer) const = 0;
+  virtual void GetVec(std::vector<float> *pvec) const = 0;
 
   static constexpr const char* _type_key = "auto_scheduler.Step";
   TVM_DECLARE_BASE_OBJECT_INFO(StepNode, Object);
@@ -257,6 +258,7 @@ class AnnotationStepNode : public StepNode {
   IteratorAnnotation annotation;
 
   void WriteToRecord(dmlc::JSONWriter* writer) const final;
+  void GetVec(std::vector<float> *pvec) const final;
 
   /*!
    * \brief Apply the current step to State.
@@ -317,6 +319,7 @@ class FuseStepNode : public StepNode {
   Array<Integer> fused_ids;
 
   void WriteToRecord(dmlc::JSONWriter* writer) const final;
+  void GetVec(std::vector<float> *pvec) const final;
 
   /*!
    * \brief Apply the current step to State.
@@ -381,6 +384,7 @@ class PragmaStepNode : public StepNode {
   String pragma_type;
 
   void WriteToRecord(dmlc::JSONWriter* writer) const final;
+  void GetVec(std::vector<float> *pvec) const final;
 
   /*!
    * \brief Apply the current step to State.
@@ -443,6 +447,7 @@ class ReorderStepNode : public StepNode {
   Array<Integer> after_ids;
 
   void WriteToRecord(dmlc::JSONWriter* writer) const final;
+  void GetVec(std::vector<float> *pvec) const final;
 
   /*!
    * \brief Apply the current step to State.
@@ -513,6 +518,7 @@ class SplitStepNode : public StepNode {
   bool inner_to_outer;
 
   void WriteToRecord(dmlc::JSONWriter* writer) const final;
+  void GetVec(std::vector<float> *pvec) const final;
 
   /*!
    * \brief Apply the current step to State.
@@ -585,6 +591,7 @@ class FollowSplitStepNode : public StepNode {
   int n_split;
 
   void WriteToRecord(dmlc::JSONWriter* writer) const final;
+  void GetVec(std::vector<float> *pvec) const final;
 
   /*!
    * \brief Extract split lengths.
@@ -666,6 +673,7 @@ class FollowFusedSplitStepNode : public StepNode {
   bool factor_or_nparts;
 
   void WriteToRecord(dmlc::JSONWriter* writer) const final;
+  void GetVec(std::vector<float> *pvec) const final;
 
   /*!
    * \brief Extract split length.
@@ -745,6 +753,7 @@ class StorageAlignStepNode : public StepNode {
   int offset;
 
   void WriteToRecord(dmlc::JSONWriter* writer) const final;
+  void GetVec(std::vector<float> *pvec) const final;
 
   /*!
    * \brief Apply the current step to State.
@@ -809,6 +818,7 @@ class ComputeAtStepNode : public StepNode {
   int target_iter_id;
 
   void WriteToRecord(dmlc::JSONWriter* writer) const final;
+  void GetVec(std::vector<float> *pvec) const final;
 
   /*!
    * \brief Apply the current step to State.
@@ -869,6 +879,7 @@ class ComputeAtStep : public Step {
 class ComputeInlineStepNode : public StepNode {
  public:
   void WriteToRecord(dmlc::JSONWriter* writer) const final;
+  void GetVec(std::vector<float> *pvec) const final;
 
   /*!
    * \brief Apply the current step to State.
@@ -924,6 +935,7 @@ class ComputeInlineStep : public Step {
 class ComputeRootStepNode : public StepNode {
  public:
   void WriteToRecord(dmlc::JSONWriter* writer) const final;
+  void GetVec(std::vector<float> *pvec) const final;
 
   /*!
    * \brief Apply the current step to State.
@@ -994,6 +1006,7 @@ class CacheReadStepNode : public StepNode {
   Array<Integer> reader_stage_ids;
 
   void WriteToRecord(dmlc::JSONWriter* writer) const final;
+  void GetVec(std::vector<float> *pvec) const final;
 
   /*!
    * \brief Apply the current step to State.
@@ -1065,6 +1078,7 @@ class CacheWriteStepNode : public StepNode {
   String scope_name;
 
   void WriteToRecord(dmlc::JSONWriter* writer) const final;
+  void GetVec(std::vector<float> *pvec) const final;
 
   /*!
    * \brief Apply the current step to State.
@@ -1132,6 +1146,7 @@ class RfactorStepNode : public StepNode {
   int factor_iter_id;
 
   void WriteToRecord(dmlc::JSONWriter* writer) const final;
+  void GetVec(std::vector<float> *pvec) const final;
 
   /*!
    * \brief Apply the current step to State.

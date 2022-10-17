@@ -16,6 +16,8 @@ from dump_network_info import get_network_with_key
 from common import str2bool, log_line, BenchmarkRecord
 
 from search import random_search, local_search, default_search
+from tlp_train import *
+from mtl_tlp_train import MTLTLPAttentionModule
 
 
 def get_network(network_args):
@@ -36,8 +38,8 @@ def get_network(network_args):
 
 
 def get_tuning_option(tuning_args, target):
-    n_trials, run_timeout, log_file = (
-        tuning_args['n_trials'], tuning_args['run_timeout'], tuning_args['log_file'])
+    n_trials, run_timeout, log_file, num_measures_per_round = (
+        tuning_args['n_trials'], tuning_args['run_timeout'], tuning_args['log_file'], tuning_args['num_measures_per_round'],)
 
     if "cpu" in target.keys:
         measure_ctx = None
@@ -46,6 +48,7 @@ def get_tuning_option(tuning_args, target):
             runner=auto_scheduler.LocalRunner(
                 repeat=10, number=1, enable_cpu_cache_flush=True, timeout=run_timeout),
             measure_callbacks=[auto_scheduler.RecordToFile(log_file)],
+            num_measures_per_round=num_measures_per_round
         )
     elif "cuda" in target.keys:
         measure_ctx = auto_scheduler.LocalRPCMeasureContext(repeat=1, min_repeat_ms=300, timeout=run_timeout)
@@ -53,6 +56,7 @@ def get_tuning_option(tuning_args, target):
             num_measure_trials=n_trials,
             runner=measure_ctx.runner,
             measure_callbacks=[auto_scheduler.RecordToFile(log_file)],
+            num_measures_per_round=num_measures_per_round
         )
     else:
         raise NotImplementedError
@@ -60,7 +64,7 @@ def get_tuning_option(tuning_args, target):
     return tuning_opt, measure_ctx
 
 
-def tune_and_evaluate(network_args, tuning_args, target, target_host, result_file, transfer_tune, search_type):
+def tune_and_evaluate(network_args, tuning_args, target, target_host, result_file, transfer_tune, search_type, max_line_len=25, max_vec_len=22):
     mod, params, inputs = get_network(network_args)
 
     # Do auto-tuning
@@ -88,7 +92,7 @@ def tune_and_evaluate(network_args, tuning_args, target, target_host, result_fil
         policy = 'sketch.%s' % tuning_args['cost_model']
 
         if not transfer_tune:
-            tuner.tune(tuning_opt, search_policy=policy)
+            tuner.tune(tuning_opt, search_policy=policy, max_line_len=max_line_len, max_vec_len=max_vec_len)
         else:
             tuner.transfer_tune(tuning_opt, search_policy=policy)
 
@@ -123,7 +127,7 @@ if __name__ == "__main__":
     parser.add_argument("--transfer-tune", action="store_true")
 
     # Search strategy related arguments
-    parser.add_argument("--cost-model", type=str, choices=['xgb', 'lgbm', 'random', 'xgb-no-update', 'lgbm-no-update', 'mlp', 'mlp-no-update', 'tab', 'tab-no-update'],
+    parser.add_argument("--cost-model", type=str, choices=['xgb', 'lgbm', 'random', 'xgb-no-update', 'lgbm-no-update', 'mlp', 'mlp-no-update', 'tab', 'tab-no-update', 'tlp-no-update'],
                         default='xgb', help="The type of program cost model")
     parser.add_argument("--seed", type=int, default=0, help='random seed')
     parser.add_argument("--load-model", type=str, help="Load pre trained cost model file")
@@ -137,14 +141,18 @@ if __name__ == "__main__":
                         default="results.tsv")
 
     # Measurement related and other arguments
-    parser.add_argument("--num-measure-per-iter", type=int, default=64,
+    parser.add_argument("--num_measures_per_round", type=int, default=64,
                         help="The number of programs to be measured at each iteration")
     parser.add_argument("--build-timeout", type=int, default=10)
     parser.add_argument("--run-timeout", type=int, default=25)
     parser.add_argument("--early-stopping", type=int, default=-1)
     parser.add_argument("--verbose", type=int, default=1)
     parser.add_argument("--search-type", type=str, default='default', choices=['random', 'default'])
+
+    parser.add_argument("--step_size", type=int, default=25)
+    parser.add_argument("--fea_size", type=int, default=22)
     args = parser.parse_args()
+    print(args)
 
     np.random.seed(args.seed)
     random.seed(args.seed)
@@ -174,8 +182,9 @@ if __name__ == "__main__":
         "cost_model": args.cost_model,
         "load_model": args.load_model,
         "n_lines": args.n_lines,
+        "num_measures_per_round": args.num_measures_per_round
     }
 
     tune_and_evaluate(network_args, tuning_args, target, args.target_host,
-                      args.result_file, args.transfer_tune, args.search_type)
+                      args.result_file, args.transfer_tune, args.search_type, max_line_len=args.step_size, max_vec_len=args.fea_size)
 

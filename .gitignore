@@ -245,3 +245,7 @@ scripts/*.pkl
 scripts/.dataset_cache
 scripts/results.tsv
 scripts/total_latency.tsv
+
+tlp_model*.pkl
+mtl_tlp_model*.pkl
+bertmodel*.pt

@@ -214,6 +214,76 @@ Step StepReadFromRecord(dmlc::JSONReader* reader) {
   return Step();
 }
 
+static std::unordered_map<std::string, std::vector<int>> stepname_to_idx_one_hot;
+static std::unordered_map<std::string, int> auto_unroll_max_step_to_idx;
+static std::unordered_map<std::string, int> chw_dict;
+
+void stepname_to_idx_init(std::string plat) {
+  std::unordered_map<std::string, int> stepname_to_idx;
+
+  if (plat == "cpu") {
+    stepname_to_idx = {
+      {"CI", 1},
+      {"RE", 2},
+      {"AN", 3},
+      {"RF", 4},
+      {"CHW", 5},
+      {"SP", 6},
+      {"CR", 7},
+      {"CA", 8},
+      {"FU", 9},
+      {"FSP", 10},
+      {"PR", 11}
+    };
+
+
+    auto_unroll_max_step_to_idx = {
+      {"auto_unroll_max_step$16", 1},
+      {"auto_unroll_max_step$0", 2},
+      {"auto_unroll_max_step$512", 3},
+      {"auto_unroll_max_step$64", 4},
+    };
+  } else {
+    stepname_to_idx = {
+      {"AN", 1},
+      {"CHR", 2},
+      {"CHW", 3},
+      {"CI", 4},
+      {"CA", 5},
+      {"FFSP", 6},
+      {"SP", 7},
+      {"FU", 8},
+      {"RE", 9},
+      {"PR", 10},
+      {"FSP", 11},
+    };
+
+
+    auto_unroll_max_step_to_idx = {
+      {"auto_unroll_max_step$0", 1},
+      {"auto_unroll_max_step$16", 2},
+      {"auto_unroll_max_step$64", 3},
+      {"auto_unroll_max_step$1024", 4},
+      {"auto_unroll_max_step$512", 5},
+    };
+  }
+
+
+  for (auto it: stepname_to_idx) {
+    std::vector<int> one_hot(11, 0);
+    one_hot[it.second - 1] = 1;
+    stepname_to_idx_one_hot[it.first] = std::move(one_hot);
+  }
+
+  chw_dict = {
+    {"local", 1},
+    {"shared", 2},
+    {"global", 3},
+  };
+
+}
+
+
 void StepApplyToState(const Step& step, State* state, const ComputeDAG& dag) {
   // We need this runtime dispatcher because different steps have different function signatures
   if (auto ps = step.as<AnnotationStepNode>()) {
@@ -357,6 +427,13 @@ void AnnotationStepNode::WriteToRecord(dmlc::JSONWriter* writer) const {
   writer->WriteArrayItem(static_cast<int>(annotation));
 }
 
+void AnnotationStepNode::GetVec(std::vector<float> *pvec) const {
+  pvec->insert(pvec->end(), stepname_to_idx_one_hot[record_prefix_str].begin(), stepname_to_idx_one_hot[record_prefix_str].end());
+  pvec->push_back(stage_id);
+  pvec->push_back(iter_id);
+  pvec->push_back(static_cast<int>(annotation));
+}
+
 Iterator AnnotationStepNode::ApplyToState(State* state) const {
   const Stage& stage = (*state)->stages[stage_id];
   Iterator it = stage->iters[iter_id];
@@ -486,6 +563,12 @@ void FuseStepNode::WriteToRecord(dmlc::JSONWriter* writer) const {
   writer->WriteString(record_prefix_str);
   writer->WriteArrayItem(stage_id);
   writer->WriteArrayItem(fused_ids);
+}
+
+void FuseStepNode::GetVec(std::vector<float> *pvec) const {
+  pvec->insert(pvec->end(), stepname_to_idx_one_hot[record_prefix_str].begin(), stepname_to_idx_one_hot[record_prefix_str].end());
+  pvec->push_back(stage_id);
+  for (auto &id: fused_ids) { pvec->push_back(id->value); }
 }
 
 Iterator FuseStepNode::ApplyToState(State* state) const {
@@ -663,6 +746,13 @@ void PragmaStepNode::WriteToRecord(dmlc::JSONWriter* writer) const {
   writer->WriteString(pragma_type);
 }
 
+void PragmaStepNode::GetVec(std::vector<float> *pvec) const {
+  pvec->insert(pvec->end(), stepname_to_idx_one_hot[record_prefix_str].begin(), stepname_to_idx_one_hot[record_prefix_str].end());
+  pvec->push_back(stage_id);
+  pvec->push_back(iter_id);
+  pvec->push_back(auto_unroll_max_step_to_idx[pragma_type]);
+}
+
 void PragmaStepNode::ApplyToState(State* state) const {
   if (pragma_type == "debug_skip_region") {
     StateNode* pstate = state->CopyOnWrite();
@@ -767,6 +857,12 @@ void ReorderStepNode::WriteToRecord(dmlc::JSONWriter* writer) const {
   writer->WriteString(record_prefix_str);
   writer->WriteArrayItem(stage_id);
   writer->WriteArrayItem(after_ids);
+}
+
+void ReorderStepNode::GetVec(std::vector<float> *pvec) const {
+  pvec->insert(pvec->end(), stepname_to_idx_one_hot[record_prefix_str].begin(), stepname_to_idx_one_hot[record_prefix_str].end());
+  pvec->push_back(stage_id);
+  for (auto &id: after_ids) { pvec->push_back(id->value); }
 }
 
 void ReorderStepNode::ApplyToState(State* state) const {
@@ -1022,6 +1118,17 @@ void SplitStepNode::WriteToRecord(dmlc::JSONWriter* writer) const {
   writer->WriteArrayItem(static_cast<int>(inner_to_outer));
 }
 
+void SplitStepNode::GetVec(std::vector<float> *pvec) const {
+  pvec->insert(pvec->end(), stepname_to_idx_one_hot[record_prefix_str].begin(), stepname_to_idx_one_hot[record_prefix_str].end());
+  pvec->push_back(stage_id);
+  pvec->push_back(iter_id);
+  pvec->push_back(extent ? GetIntImm(extent.value()) : 0);
+  for (auto &len: lengths) {
+    pvec->push_back(len.value()->value);
+  }
+  pvec->push_back(static_cast<int>(inner_to_outer));
+}
+
 Array<Iterator> SplitStepNode::ApplyToState(State* state) const {
   return ApplySplitToState(state, stage_id, iter_id, lengths, inner_to_outer);
 }
@@ -1053,6 +1160,14 @@ void FollowSplitStepNode::WriteToRecord(dmlc::JSONWriter* writer) const {
   writer->WriteArrayItem(iter_id);
   writer->WriteArrayItem(src_step_id);
   writer->WriteArrayItem(n_split);
+}
+
+void FollowSplitStepNode::GetVec(std::vector<float> *pvec) const {
+  pvec->insert(pvec->end(), stepname_to_idx_one_hot[record_prefix_str].begin(), stepname_to_idx_one_hot[record_prefix_str].end());
+  pvec->push_back(stage_id);
+  pvec->push_back(iter_id);
+  pvec->push_back(src_step_id);
+  pvec->push_back(n_split);
 }
 
 Array<Optional<Integer>> FollowSplitStepNode::ExtractSplitLengths(
@@ -1176,6 +1291,15 @@ void FollowFusedSplitStepNode::WriteToRecord(dmlc::JSONWriter* writer) const {
   writer->WriteArrayItem(static_cast<int>(factor_or_nparts));
 }
 
+void FollowFusedSplitStepNode::GetVec(std::vector<float> *pvec) const {
+  pvec->insert(pvec->end(), stepname_to_idx_one_hot[record_prefix_str].begin(), stepname_to_idx_one_hot[record_prefix_str].end());
+  pvec->push_back(stage_id);
+  pvec->push_back(iter_id);
+  for (auto &id: src_step_ids) { pvec->push_back(id->value); }
+  pvec->push_back(level);
+  pvec->push_back(static_cast<int>(factor_or_nparts));
+}
+
 Optional<Integer> FollowFusedSplitStepNode::ExtractSplitLength(
     const Array<Step>& transform_steps) const {
   PrimExpr ret(1);
@@ -1250,6 +1374,13 @@ void StorageAlignStepNode::WriteToRecord(dmlc::JSONWriter* writer) const {
   writer->WriteArrayItem(factor);
   writer->WriteArrayItem(offset);
 }
+void StorageAlignStepNode::GetVec(std::vector<float> *pvec) const {
+  pvec->insert(pvec->end(), stepname_to_idx_one_hot[record_prefix_str].begin(), stepname_to_idx_one_hot[record_prefix_str].end());
+  pvec->push_back(stage_id);
+  pvec->push_back(iter_id);
+  pvec->push_back(factor);
+  pvec->push_back(offset);
+}
 
 void StorageAlignStepNode::ApplyToState(State* state) const {
   StateNode* pstate = state->CopyOnWrite();
@@ -1312,6 +1443,14 @@ void ComputeAtStepNode::WriteToRecord(dmlc::JSONWriter* writer) const {
   writer->WriteArrayItem(target_stage_id);
   writer->WriteArrayItem(target_iter_id);
 }
+
+void ComputeAtStepNode::GetVec(std::vector<float> *pvec) const {
+  pvec->insert(pvec->end(), stepname_to_idx_one_hot[record_prefix_str].begin(), stepname_to_idx_one_hot[record_prefix_str].end());
+  pvec->push_back(stage_id);
+  pvec->push_back(target_stage_id);
+  pvec->push_back(target_iter_id);
+}
+
 void ComputeAtStepNode::ApplyToState(State* state) const {
   const Stage& stage = (*state)->stages[stage_id];
 
@@ -1376,6 +1515,11 @@ void ComputeInlineStepNode::WriteToRecord(dmlc::JSONWriter* writer) const {
   writer->WriteArrayItem(stage_id);
 }
 
+void ComputeInlineStepNode::GetVec(std::vector<float> *pvec) const {
+  pvec->insert(pvec->end(), stepname_to_idx_one_hot[record_prefix_str].begin(), stepname_to_idx_one_hot[record_prefix_str].end());
+  pvec->push_back(stage_id);
+}
+
 void ComputeInlineStepNode::ApplyToState(State* state) const {
   const Stage& stage = (*state)->stages[stage_id];
 
@@ -1430,6 +1574,11 @@ void ComputeRootStepNode::WriteToRecord(dmlc::JSONWriter* writer) const {
   writer->WriteArraySeperator();
   writer->WriteString(record_prefix_str);
   writer->WriteArrayItem(stage_id);
+}
+
+void ComputeRootStepNode::GetVec(std::vector<float> *pvec) const {
+  pvec->insert(pvec->end(), stepname_to_idx_one_hot[record_prefix_str].begin(), stepname_to_idx_one_hot[record_prefix_str].end());
+  pvec->push_back(stage_id);
 }
 
 void ComputeRootStepNode::ApplyToState(State* state) const {
@@ -1541,6 +1690,13 @@ void CacheReadStepNode::WriteToRecord(dmlc::JSONWriter* writer) const {
   writer->WriteArrayItem(reader_stage_ids);
 }
 
+void CacheReadStepNode::GetVec(std::vector<float> *pvec) const {
+  pvec->insert(pvec->end(), stepname_to_idx_one_hot[record_prefix_str].begin(), stepname_to_idx_one_hot[record_prefix_str].end());
+  pvec->push_back(stage_id);
+  pvec->push_back(1);
+  for (auto &id: reader_stage_ids) { pvec->push_back(id->value); }
+}
+
 int CacheReadStepNode::ApplyToState(State* state, const ComputeDAG& dag) const {
   StateNode* pstate = state->CopyOnWrite();
   const ComputeDAG& current_compute_dag = dag.ReplayAndGetDAG(
@@ -1646,6 +1802,12 @@ void CacheWriteStepNode::WriteToRecord(dmlc::JSONWriter* writer) const {
   writer->WriteArrayItem(stage_id);
   writer->WriteArraySeperator();
   writer->WriteString(scope_name);
+}
+
+void CacheWriteStepNode::GetVec(std::vector<float> *pvec) const {
+  pvec->insert(pvec->end(), stepname_to_idx_one_hot[record_prefix_str].begin(), stepname_to_idx_one_hot[record_prefix_str].end());
+  pvec->push_back(stage_id);
+  pvec->push_back(chw_dict[scope_name]);
 }
 
 int CacheWriteStepNode::ApplyToState(State* state, const ComputeDAG& dag) const {
@@ -1780,6 +1942,13 @@ void RfactorStepNode::WriteToRecord(dmlc::JSONWriter* writer) const {
   writer->WriteArrayItem(factor_iter_id);
 }
 
+void RfactorStepNode::GetVec(std::vector<float> *pvec) const {
+  pvec->insert(pvec->end(), stepname_to_idx_one_hot[record_prefix_str].begin(), stepname_to_idx_one_hot[record_prefix_str].end());
+  pvec->push_back(stage_id);
+  pvec->push_back(iter_id);
+  pvec->push_back(factor_iter_id);
+}
+
 int RfactorStepNode::ApplyToState(State* state, const ComputeDAG& dag) const {
   StateNode* pstate = state->CopyOnWrite();
   const auto& compute_at_type = pstate->stages[stage_id]->compute_at;
@@ -1874,6 +2043,16 @@ String RfactorStepNode::PrintAsPythonAPI(Array<te::Stage>* stages, StageToAxesMa
 
   return ss.str();
 }
+
+
+TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromStatesTLPInit")
+    .set_body([](TVMArgs args, TVMRetValue* ret) {
+      std::string plat = args[0];
+      stepname_to_idx_init(plat);
+      std::cout << "stepname_to_idx_init done." << std::endl;
+    });
+
+
 
 }  // namespace auto_scheduler
 }  // namespace tvm

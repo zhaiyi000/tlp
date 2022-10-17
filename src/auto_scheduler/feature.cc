@@ -40,6 +40,7 @@
 #include <numeric>
 #include <unordered_map>
 #include <vector>
+#include <cassert>
 
 #include "search_policy/utils.h"
 #include "utils.h"
@@ -1367,6 +1368,42 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
   }
 }
 
+void GetPerStoreFeaturesWorkerFuncTLP(const SearchTask& task, const State& state, int max_n_bufs,
+                                   std::vector<std::vector<float>> *pstep_vecs, std::atomic<int>* error_ct,
+                                   size_t max_line_len, size_t max_vec_len) {
+
+  // const auto* f =
+  //     tvm::runtime::Registry::Get("auto_scheduler.SerializeMeasureInput");
+  // MeasureInput input = MeasureInput(task, state);
+  // auto res = (*f)(input);
+  // size_t max_vec_len = 22;
+  // size_t max_line_len = 25;
+
+  // std::vector<std::vector<int>> step_vecs;    
+  for (auto &step: state->transform_steps) {
+    std::vector<float> vec;    
+    step->GetVec(&vec);
+    if (vec.size() > max_vec_len) {
+      vec.erase(vec.begin() + max_vec_len, vec.end());
+    }
+    for (size_t i = vec.size(); i < max_vec_len; i++) {
+      vec.push_back(0);
+    }
+    assert(vec.size() == max_vec_len);
+    pstep_vecs->push_back(std::move(vec));
+  }
+
+  if (pstep_vecs->size() > max_line_len) {
+    pstep_vecs->erase(pstep_vecs->begin() + max_line_len, pstep_vecs->end());
+  }
+  for (size_t i = pstep_vecs->size(); i < max_line_len; i++) {
+    std::vector<float> vec(max_vec_len, 0);
+    pstep_vecs->push_back(std::move(vec));
+  }
+
+  assert(pstep_vecs->size() == max_line_len);
+}
+
 void GetPerStoreFeaturesFromStates(const Array<State>& states, const SearchTask& task,
                                    int skip_first_n_feature_extraction, int max_n_bufs,
                                    std::vector<std::vector<float>>* features) {
@@ -1379,6 +1416,25 @@ void GetPerStoreFeaturesFromStates(const Array<State>& states, const SearchTask&
                         [&task, &states, &max_n_bufs, &features, &error_ct](int i) {
                           GetPerStoreFeaturesWorkerFunc(task, states[i], max_n_bufs,
                                                         &(*features)[i], &error_ct);
+                        });
+}
+
+void GetPerStoreFeaturesFromStatesTLP(const Array<State>& states, const SearchTask& task,
+                                   int skip_first_n_feature_extraction, int max_n_bufs,
+                                   std::vector<std::vector<std::vector<float>>>* features,
+                                   int max_line_len, int max_vec_len) {
+  // extract features
+  features->assign(states.size(), std::vector<std::vector<float>>());
+
+  std::atomic<int> error_ct(0);
+
+  // GetPerStoreFeaturesWorkerFuncTLP(task, states[0], max_n_bufs,
+  //                                                       &(*features)[0], &error_ct, max_line_len, max_vec_len);
+
+  support::parallel_for(skip_first_n_feature_extraction, states.size(),
+                        [&task, &states, &max_n_bufs, &features, &error_ct, &max_line_len, &max_vec_len](int i) {
+                          GetPerStoreFeaturesWorkerFuncTLP(task, states[i], max_n_bufs,
+                                                        &(*features)[i], &error_ct, max_line_len, max_vec_len);
                         });
 }
 
@@ -1678,6 +1734,36 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromStates")
       *ret = SerializeFeatures(std::move(features), std::move(normalized_throughputs),
                                std::move(task_ids), std::move(min_costs), &byte_data);
     });
+
+
+TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromStatesTLP")
+    .set_body([](TVMArgs args, TVMRetValue* ret) {
+      Array<State> states = args[0];
+      SearchTask task = args[1];
+      int max_n_bufs = args[2];
+      int max_line_len = args[3];
+      int max_vec_len = args[4];
+
+      std::vector<std::vector<std::vector<float>>> features;
+
+      GetPerStoreFeaturesFromStatesTLP(states, task, 0, max_n_bufs, &features, max_line_len, max_vec_len);
+
+      std::vector<char> out_data;
+      size_t total_bytes = features.size() * features[0].size() * features[0][0].size() * sizeof(float);
+      out_data.reserve(total_bytes);
+      char* ptr = out_data.data();
+      for (auto& fec1 : features) {
+        for (auto& fec2 : fec1) {
+          memmove(ptr, fec2.data(), sizeof(float) * fec2.size());
+          ptr += sizeof(float) * fec2.size();
+          fec2.clear();
+        }
+      }
+
+      CHECK_EQ(ptr - out_data.data(), total_bytes);
+      *ret = TVMByteArray{out_data.data(), total_bytes};
+    });
+
 
 TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeatureNames")
     .set_body([](TVMArgs args, TVMRetValue* ret) {

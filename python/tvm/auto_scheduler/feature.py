@@ -249,6 +249,36 @@ def get_per_store_features_from_states(
     return unpack_feature(byte_arr)[0]
 
 
+def get_per_store_features_from_states_tlp(
+    states: List[Union[State, StateObject]], task: "SearchTask", max_vec_len, max_line_len, max_n_bufs: Optional[int] = None
+) -> np.ndarray:
+    """Get per-store features from measurement input/result pairs
+
+    Parameters
+    ----------
+    states: List[Union[State, StateObject]]
+        The input states
+
+    Returns
+    -------
+    features: np.ndarray
+        Feature vectors
+    """
+    if isinstance(states[0], State):
+        state_objects = [s.state_object for s in states]
+    elif isinstance(states[0], StateObject):
+        state_objects = states
+    byte_arr = _ffi_api.GetPerStoreFeaturesFromStatesTLP(
+        state_objects, task, max_n_bufs or DEFAULT_MAX_N_BUFS, max_line_len, max_vec_len
+    )
+    x = struct.unpack_from("%df" % len(state_objects) * max_line_len * max_vec_len, byte_arr)
+    nparr = np.array(x, dtype=np.float32).reshape([len(state_objects), max_line_len, max_vec_len])
+    return nparr
+
+def get_per_store_features_from_states_tlp_init(plat):
+    _ffi_api.GetPerStoreFeaturesFromStatesTLPInit(plat)
+
+
 def get_per_store_feature_names(max_n_bufs: Optional[int] = None) -> List[str]:
     """Get the name of every element in the feature vector. Use this for debug and inspection.
 

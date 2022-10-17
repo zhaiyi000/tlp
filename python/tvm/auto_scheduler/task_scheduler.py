@@ -31,7 +31,7 @@ import pickle
 import numpy as np
 
 from .search_policy import SearchPolicy, SketchPolicy, PreloadMeasuredStates
-from .cost_model import RandomModel, XGBModel, MLPModel, LGBModel, TabNetModel
+from .cost_model import RandomModel, XGBModel, MLPModel, LGBModel, TabNetModel, TLPModel
 from .utils import array_mean
 from .measure import ProgramMeasurer, EmptyBuilder, EmptyRunner
 from .measure_record import RecordReader
@@ -51,7 +51,9 @@ def make_search_policies(
     load_log_file,
     adapative_training,
     disable_cost_model_update,
-    few_shot_learning='base_only'
+    few_shot_learning='base_only',
+    max_line_len=25, 
+    max_vec_len=22,
 ):
     """Make a list of search policies for a list of search tasks.
     It creates one policy per task.
@@ -91,7 +93,7 @@ def make_search_policies(
 
     if isinstance(search_policy, str):
         policy_type, model_type = search_policy.split(".")
-        if model_type in ['xgb', 'xgb-no-update', 'mlp', 'mlp-no-update', 'tab', 'tab-no-update']:
+        if model_type in ['xgb', 'xgb-no-update', 'mlp', 'mlp-no-update', 'tab', 'tab-no-update', 'tlp-no-update']:
             if model_type == 'xgb-no-update' or model_type == 'mlp-no-update' or model_type == 'tab-no-update':
                 disable_cost_model_update = True
             if model_type in ['xgb', 'xgb-no-update']:
@@ -105,6 +107,9 @@ def make_search_policies(
                     disable_update=disable_cost_model_update,
                     few_shot_learning=few_shot_learning
                 )
+            elif model_type in ['tlp-no-update']:
+                cost_model = TLPModel(target=tasks[0].target, max_line_len=max_line_len, max_vec_len=max_vec_len)
+            
             else:
                 cost_model = MLPModel(
                     disable_update=disable_cost_model_update,
@@ -327,6 +332,8 @@ class TaskScheduler:
         search_policy_params=None,
         adapative_training=False,
         per_task_early_stopping=None,
+        max_line_len=25, 
+        max_vec_len=22
     ):
         """Tune a batch of tasks together.
 
@@ -398,6 +405,8 @@ class TaskScheduler:
             self.load_log_file,
             adapative_training,
             disable_cost_model_update,
+            max_line_len=max_line_len, 
+            max_vec_len=max_vec_len
         )
 
         # do a round robin first to warm up
