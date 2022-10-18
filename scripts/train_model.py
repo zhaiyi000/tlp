@@ -92,7 +92,7 @@ def make_model(name, use_gpu=False):
         raise ValueError("Invalid model: " + name)
  
 
-def train_zero_shot(dataset, train_ratio, model_names, split_scheme, use_gpu):
+def train_zero_shot(dataset, train_ratio, model_names, split_scheme, use_gpu, models):
     # Split dataset
     if split_scheme == "within_task":
         train_set, test_set = dataset.random_split_within_task(train_ratio)
@@ -108,11 +108,11 @@ def train_zero_shot(dataset, train_ratio, model_names, split_scheme, use_gpu):
         test_set = train_set
     print("Test set:  %d. Task 0 = %s" % (len(test_set), test_set.tasks()[0]))
 
-    # Make models
-    names = model_names.split("@")
-    models = []
-    for name in names:
-        models.append(make_model(name, use_gpu))
+    # # Make models
+    # names = model_names.split("@")
+    # models = []
+    # for name in names:
+    #     models.append(make_model(name, use_gpu))
 
     eval_results = []
     for name, model in zip(names, models):
@@ -163,11 +163,17 @@ if __name__ == "__main__":
     print("Load all tasks...")
     load_and_register_tasks()
 
+    # Make models
+    names = args.models.split("@")
+    models = []
+    for name in names:
+        models.append(make_model(name, args.use_gpu))
+
     print("Load dataset...")
     dataset = pickle.load(open(args.dataset[0], "rb"))
     for i in range(1, len(args.dataset)):
         tmp_dataset = pickle.load(open(args.dataset[i], "rb"))
         dataset.update_from_dataset(tmp_dataset)
 
-    train_zero_shot(dataset, args.train_ratio, args.models, args.split_scheme, args.use_gpu)
+    train_zero_shot(dataset, args.train_ratio, args.models, args.split_scheme, args.use_gpu, models)
 
