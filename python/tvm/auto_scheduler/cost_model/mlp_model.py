@@ -451,6 +451,7 @@ class MLPModelInternal:
 
             diff_model = self._fit_a_model(diff_train_set, diff_valid_set)
 
+            self.local_model = self.local_model or {}
             for task in train_set.tasks():
                 self.local_model[task] = diff_model
         elif self.few_shot_learning == "plus_per_task":
