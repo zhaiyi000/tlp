@@ -220,9 +220,11 @@ def train(train_loader, val_dataloader, device):
     if args.attention_class == 'default':
         args.hidden_dim = [64, 128, 256, 256]
         args.out_dim = [256, 128, 64, 1]
-        # net = AttentionModule().to(device)
-        with open(args.pre_train_model, 'rb') as f:
-            net = pickle.load(f).module.to(device)
+        if (len(args.pre_train_model) > 0):
+            with open(args.pre_train_model, 'rb') as f:
+                net = pickle.load(f).module.to(device)
+        else:
+            net = AttentionModule().to(device)
         net = torch.nn.DataParallel(net).to(torch.cuda.current_device())
     
 
