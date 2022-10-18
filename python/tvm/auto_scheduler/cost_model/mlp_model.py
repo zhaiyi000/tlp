@@ -517,6 +517,7 @@ class MLPModelInternal:
         early_stop = n_epoch // 6
 
         net = make_net(self.net_params).to(self.device)
+        self.base_model = net
         optimizer = torch.optim.Adam(
             net.parameters(), lr=self.lr, weight_decay=self.wd
         )
@@ -763,8 +764,8 @@ class MLPModelInternal:
         else:
             self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec = \
                 pickle.load(open(filename, 'rb'))
-            self.base_model = self.base_model.cuda() if self.base_model else None 
-            self.local_model = self.local_model.cuda() if self.local_model else None
+            self.base_model = self.base_model.to(self.device) if self.base_model else None 
+            self.local_model = self.local_model.to(self.device) if self.local_model else None
 
     def save(self, filename):
         base_model = self.base_model.cpu() if self.base_model else None 
