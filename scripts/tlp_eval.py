@@ -16,7 +16,12 @@ def pred_a_dataset(datas, task_pred_dict, model):
         file, file_idx, workloadkey_idx, workloadkey, workload_args, flop_ct, line_vecs = data
         datas_new.extend(line_vecs)
 
-    test_loader = SegmentDataLoader(datas_new, 4000, False)
+    if isinstance(model, BertModule):
+        test_loader = BertSegmentDataLoader(datas_new, 512, False)
+    elif isinstance(model, GPTModule):
+        test_loader = GPTSegmentDataLoader(datas_new, 512, False)
+    else:
+        test_loader = SegmentDataLoader(datas_new, 4000, False)
     assert test_loader.min_latency.min() == test_loader.min_latency.max()
 
     preds_all = []
