@@ -455,10 +455,13 @@ class GPTSegmentDataLoader:
         min_latency = []
         for data_idx, data in enumerate(dataset):
             datas_step, label, min_lat = data
+            datas_step_new = []
             for step in datas_step:
-                step.insert(0, 1 - sum(step[:11]))
+                step_new = step.copy()
+                step_new.insert(0, 1 - sum(step_new[:11]))
+                datas_step_new.append(step_new)
 
-            datas_steps.append(datas_step)
+            datas_steps.append(datas_step_new)
             labels.append(label)
             min_latency.append(min_lat)
 
