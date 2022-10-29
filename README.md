@@ -2,7 +2,7 @@
 
 This repo is based on a fork of [tenset](https://github.com/tlc-pack/tenset).
 
-## Installion
+## installation
 
 Build and install this repo following the [guide](https://github.com/zhaiyi000/tlp/blob/main/docs/install/from_source.rst).
 
@@ -22,7 +22,7 @@ Build and install this repo following the [guide](https://github.com/zhaiyi000/t
    mv i7 dataset_cpu/measure_records
    ```
 
-3. There are some errors when training MTL-TLP. Execution follow cmd to avoid them.
+3. There are some errors when training MTL-TLP. Execution follows cmd to avoid them.
 
    ```shell
    python tlp_preprocess_dataset_gpu.py
@@ -33,7 +33,7 @@ Build and install this repo following the [guide](https://github.com/zhaiyi000/t
 
 #### CPU 
 
-1. Make dataset.
+1. Make a dataset.
 
    ```shell
    rm -f dataset
@@ -62,7 +62,7 @@ Build and install this repo following the [guide](https://github.com/zhaiyi000/t
 
 #### GPU 
 
-1. Make dataset.
+1. Make a dataset.
 
    ```shell
    rm -f dataset
@@ -89,7 +89,7 @@ Build and install this repo following the [guide](https://github.com/zhaiyi000/t
 
 #### CPU 
 
-1. Make dataset
+1. Make a dataset
 
    ```shell
    rm -f dataset
@@ -123,7 +123,7 @@ Build and install this repo following the [guide](https://github.com/zhaiyi000/t
 
 #### GPU 
 
-1. Make dataset
+1. Make a dataset
 
    ```shell
    rm -f dataset
@@ -185,9 +185,9 @@ python tune_network.py --network=resnet_50 --n-trials=2000 --cost-model=tlp-no-u
 
    ```shell
    cd minGPT
-   # 1. use unlablled data to train the gpt model
+   # 1. use unlabeled data to train the gpt model
    CUDA_VISIBLE_DEVICES=0,1,2,3 python train_gpt.py --dataset=tlp_dataset_i7_2308_train_and_val.pkl --train_size_per_gpu=3072
-   # 2. use labbled data to train the gpt and downstream model
+   # 2. use labeled data to train the gpt and downstream model
    CUDA_VISIBLE_DEVICES=0,1,2,3 python tlp_train.py --save_folder=tlp_gpt --dataset=tlp_dataset_i7_2308_train_and_val.pkl --attention_class=gpt --data_cnt=500 --train_size_per_gpu=384 --val_size_per_gpu=384
    # 3. eval
    python tlp_eval.py --test_dataset_name=tlp_dataset_i7_2308_test.pkl --load_name=tlp_gpt/tlp_model_29.pkl
@@ -196,12 +196,12 @@ python tune_network.py --network=resnet_50 --n-trials=2000 --cost-model=tlp-no-u
 3. bert
 
    ```shell
-   # 1. make dataset for bert
+   # 1. make a dataset for bert
    python tlp_make_dataset_bert.py --json_files_path=dataset/measure_records/i7
    cd bert
-   # 2. use unlablled data to train the bert model
+   # 2. use unlabeled data to train the bert model
    CUDA_VISIBLE_DEVICES=0,1,2,3 python train_bert.py --datasets=tlp_dataset_bert_platinum_8272_2308_train_and_val.pkl --batch_size=1152
-   # 3. use labbled data to train the bert and downstream model
+   # 3. use labeled data to train the bert and downstream model
    CUDA_VISIBLE_DEVICES=0,1,2,3 python tlp_train.py --save_folder=tlp_bert --dataset=tlp_dataset_bert_i7_2308_train_and_val.pkl --attention_class=bert --data_cnt=500 --train_size_per_gpu=384 --val_size_per_gpu=384
    # 4. eval
    python tlp_eval.py --test_dataset_name=tlp_dataset_bert_i7_2308_test.pkl --load_name=tlp_bert/tlp_model_33.pkl
