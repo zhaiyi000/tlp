@@ -176,7 +176,7 @@ python tune_network.py --network=resnet_50 --n-trials=2000 --cost-model=tlp-no-u
 
 2. gpt
 
-   The source code is a fork of this [commit](https://github.com/karpathy/minGPT/tree/3ed14b2cec0dfdad3f4b2831f2b4a86d11aef150) of [minGPT](https://github.com/karpathy/minGPT).
+   The source code is a fork of this [commit](https://github.com/karpathy/minGPT/tree/3ed14b2cec0dfdad3f4b2831f2b4a86d11aef150) of minGPT.
 
    ```shell
    cd minGPT
