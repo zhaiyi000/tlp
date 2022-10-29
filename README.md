@@ -22,7 +22,7 @@ Build and install this repo following the [guide](https://github.com/zhaiyi000/t
    mv i7 dataset_cpu/measure_records
    ```
 
-3. There are some errors when training MTL-TLP. Execution follows cmd to avoid them.
+3. There are some errors when training MTL-TLP. Execution following cmd to avoid them.
 
    ```shell
    python tlp_preprocess_dataset_gpu.py
