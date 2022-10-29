@@ -102,13 +102,6 @@ Build and install this repo following the [guide](https://github.com/zhaiyi000/t
                                                    tlp_dataset_i7_2308_train_and_val.pkl
    ```
 
-   GPU dataset
-
-   ```shell
-   python mtl_tlp_make_dataset.py --union_datasets tlp_dataset_k80_2308_train_and_val.pkl \
-   																								tlp_dataset_t4_2308_train_and_val.pkl
-   ```
-
 2. Train. Then pick a model based on the validation set loss.
 
    ```shell
