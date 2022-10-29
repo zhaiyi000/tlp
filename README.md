@@ -1,5 +1,3 @@
-[toc]
-
 # TLP: A Deep Learning-based Cost Model for Tensor Program Tuning
 
 This repo is based on a fork of [tenset](https://github.com/tlc-pack/tenset).
