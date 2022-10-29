@@ -183,7 +183,7 @@ python tune_network.py --network=resnet_50 --n-trials=2000 --cost-model=tlp-no-u
    # 1. use unlabeled data to train the gpt model
    CUDA_VISIBLE_DEVICES=0,1,2,3 python train_gpt.py --dataset=tlp_dataset_i7_2308_train_and_val.pkl --train_size_per_gpu=3072
    # 2. use labeled data to train the gpt and downstream model
-   CUDA_VISIBLE_DEVICES=0,1,2,3 python tlp_train.py --save_folder=tlp_gpt --dataset=tlp_dataset_i7_2308_train_and_val.pkl --attention_class=gpt --data_cnt=500 --train_size_per_gpu=384 --val_size_per_gpu=384
+   CUDA_VISIBLE_DEVICES=0,1,2,3 python tlp_train.py --save_folder=tlp_gpt --dataset=tlp_dataset_i7_2308_train_and_val.pkl --self_sup_model=minGPT/gpt_model_132.pt --attention_class=gpt --data_cnt=500 --train_size_per_gpu=384 --val_size_per_gpu=384
    # 3. eval
    python tlp_eval.py --test_dataset_name=tlp_dataset_i7_2308_test.pkl --load_name=tlp_gpt/tlp_model_29.pkl
    ```
@@ -197,7 +197,7 @@ python tune_network.py --network=resnet_50 --n-trials=2000 --cost-model=tlp-no-u
    # 2. use unlabeled data to train the bert model
    CUDA_VISIBLE_DEVICES=0,1,2,3 python train_bert.py --datasets=tlp_dataset_bert_platinum_8272_2308_train_and_val.pkl --batch_size=1152
    # 3. use labeled data to train the bert and downstream model
-   CUDA_VISIBLE_DEVICES=0,1,2,3 python tlp_train.py --save_folder=tlp_bert --dataset=tlp_dataset_bert_i7_2308_train_and_val.pkl --attention_class=bert --data_cnt=500 --train_size_per_gpu=384 --val_size_per_gpu=384
+   CUDA_VISIBLE_DEVICES=0,1,2,3 python tlp_train.py --save_folder=tlp_bert --dataset=tlp_dataset_bert_i7_2308_train_and_val.pkl --self_sup_model=bert/bertmodel_78.pt --attention_class=bert --data_cnt=500 --train_size_per_gpu=384 --val_size_per_gpu=384
    # 4. eval
    python tlp_eval.py --test_dataset_name=tlp_dataset_bert_i7_2308_test.pkl --load_name=tlp_bert/tlp_model_33.pkl
    ```
