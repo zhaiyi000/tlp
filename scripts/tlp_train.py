@@ -557,10 +557,16 @@ class BertSegmentDataLoader:
 def load_datas(datasets_global):
 
     datasets = np.array(datasets_global, dtype=object)
-    train_len = int(len(datasets) * 0.9)
+    if args.data_cnt > 0:
+        train_len = int(args.data_cnt * 1000 * 0.9)
 
-    perm = np.random.permutation(len(datasets))
-    train_indices, val_indices = perm[:train_len], perm[train_len:]
+        perm = np.random.permutation(len(datasets))
+        train_indices, val_indices = perm[:train_len], perm[train_len:args.data_cnt * 1000]
+    else:
+        train_len = int(len(datasets) * 0.9)
+
+        perm = np.random.permutation(len(datasets))
+        train_indices, val_indices = perm[:train_len], perm[train_len:]
 
     train_datas, val_datas = datasets[train_indices], datasets[val_indices]
 
@@ -742,6 +748,7 @@ if __name__ == "__main__":
     parser.add_argument("--fea_size", type=int, default=22)
     parser.add_argument("--res_block_cnt", type=int, default=2)
     parser.add_argument("--self_sup_model", type=str, default='')
+    parser.add_argument("--data_cnt", type=int, default=-1)  # data_cnt * 1000
 
     parser.add_argument("--train_size_per_gpu", type=int, default=1024)
     parser.add_argument("--val_size_per_gpu", type=int, default=1024)

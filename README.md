@@ -1,107 +1,212 @@
-# TenSet: A Large-scale Program Performance Dataset for Learned Tensor Compilers
+[toc]
 
-TenSet is a large-scale multi-platform tensor program performance dataset.
-TenSet contains 52 million program performance records collected from 6 hardware platforms.
-This repo is based on a fork of [TVM](https://github.com/apache/tvm).
+# TLP: A Deep Learning-based Cost Model for Tensor Program Tuning
 
-## Dataset Information
+This repo is based on a fork of [tenset](https://github.com/tlc-pack/tenset).
 
-- Statics
-  | Item | Number |
-  | ---- | ------ |
-  | Networks | 120 |
-  | Hardware Platforms | 6 |
-  | Tasks | 13,848 |
-  | Measurement records | 51,577,248 |
+## Installion
 
-- Hardware Platforms
-  | Hardware Platform | Cloud Instance | Other Comments |
-  | ----------------- | -------------- | -------------- |
-  | Intel Platinum 8272CL @ 2.60GHz (16 cores)  | Azure D32s\_v4 | AVX-512 |
-  | Intel E5-2673 v4 @ 2.30GHz (8 cores) | Azure F16s | AVX-2 |
-  | AMD EPYC 7452 @ 2.35GHz (4 cores) | Azure D16as\_v4 | AVX-2 |
-  | ARM Graviton2 (16 cores) | AWS c6g.4xlarge |  Neon |
-  | NVIDIA Tesla K80 | AWS p2.xlarge   | Kepler Architecture |
-  | NVIDIA Tesla T4  | AWS g4dn.xlarge | Turing Architecture |
+Build and install this repo following the [guide](https://github.com/zhaiyi000/tlp/blob/main/docs/install/from_source.rst).
 
+## Download the TenSet and TenSet-TLP datasets
 
-## Get Started with the Cost Model Experiments
-See this [tutorial](docs/get_started_with_cost_model_experiments.md).
+1. Download
 
-## Organization
-Follow the above tutorial to download the dataset. The dataset is stored under `tenset/scripts/dataset` folder.
+   You can download [tenset_cpu_v3.3.zip](https://drive.google.com/file/d/1JQwGEe8jCpuhZPnUxO0Sb1CJJ06uevy6/view?usp=sharing), [tenset_gpu_v3.3.zip](https://drive.google.com/file/d/1jqHbmvXUrLPDCIqJIaPee_atsPc0ZFFK/view?usp=sharing), [tenset_tlp_v0.1.zip](https://drive.google.com/file/d/1WVNbmha3jjlqAAX-81N_doJ5IFihGfSK/view?usp=sharing) from google drive. And put these zip files under `tlp/scripts`.
 
-- `dataset/network_info`: The metadata for networks
-   - `*.relay.pkl`: The relay IR of a network. One network per file.
-       - For example, `(resnet_50,[(1,3,224,224)]).relay.pkl` contains the relay IR of resnet_50 with input shape (1, 3, 224, 224).
-   - `*.task.pkl`: The tasks and their weights in a network. One (network, targte) pair per file.
-       - For example, `((resnet_50,[(1,3,224,224)]),llvm).task.pkl` contains all tasks of resnet_50 on llvm backend.
-   - `all_tasks.pkl`: A file containing all tasks. It is used an an index for all tasks.
-- `dataset/to_measure_programs`: The generated random programs for measurement.
-   - `*.json`: The randomly generated programs (schedules) for measurement. One file per task.
-- `dataset/measure_records`: Collected measurement records.
-   - `e5-2666/*.json`: measurement records collected on an Intel e5-2673. One file per task.
-   - `platinum-8272/*.json`: measurement records collected on an Intel platinum-8272. One file per task.
-   - `...`: other hardware platforms
+2. Unzip
 
-## Inspect Tasks and Programs in the Dataset
-Follow the above tutorial to download the dataset. You can then inspect the tasks and programs in the dataset
+   ```shell
+   cd scripts
+   unzip dataset_cpu_v3.3.zip
+   unzip dataset_gpu_v3.3.zip
+   unzip dataset_tlp_v0.1.zip
+   mv i7 dataset_cpu/measure_records
+   ```
 
-- Print a task
-  ```bash
-  cd scripts
-  python3 print_all_tasks.py --idx 1264
-  ```
+3. There are some errors when training MTL-TLP. Execution follow cmd to avoid them.
 
-  output:
-  ```python
-  Index: 1264
-  flop_ct: 115806208.0
-  workload_key: ["12b88bedece6984af589a28b43e0f3c4", 1, 56, 56, 64, 3, 3, 64, 128, 1, 1, 1, 128, 1, 28, 28, 128]
-  Compute DAG:
-  placeholder = PLACEHOLDER [1, 56, 56, 64]
-  PaddedInput(i0, i1, i2, i3) = tir.if_then_else(((((i1 >= 1) && (i1 < 57)) && (i2 >= 1)) && (i2 < 57)), placeholder[i0, (i1 - 1), (i2 - 1), i3], 0f)
-  placeholder = PLACEHOLDER [3, 3, 64, 128]
-  Conv2dOutput(nn, yy, xx, ff) += (PaddedInput[nn, ((yy*2) + ry), ((xx*2) + rx), rc]*placeholder[ry, rx, rc, ff])
-  placeholder = PLACEHOLDER [1, 1, 1, 128]
-  T_add(ax0, ax1, ax2, ax3) = (Conv2dOutput[ax0, ax1, ax2, ax3] + placeholder[ax0, 0, 0, ax3])
-  T_relu(ax0, ax1, ax2, ax3) = max(T_add[ax0, ax1, ax2, ax3], 0f)
-  ```
-
-- Print a program
-  ```bash
-  cd scripts
-  python3 print_programs.py --filename 'dataset/measure_records/e5-2673/([12b88bedece6984af589a28b43e0f3c4,1,56,56,64,3,3,64,128,1,1,1,128,1,28,28,128],llvm).json' --idx 31
-  ```
-
-  output:
-  ```python
-  Index: 31
-  Time cost (second): [0.000990787, 0.000826989, 0.00082599, 0.00083999, 0.000827089, 0.000831189, 0.00083599, 0.000853589]
-  Program:
-  Placeholder: placeholder, placeholder, placeholder
-  parallel ax0.0@ax1.0@ax2.0@ (0,4)
-    for i1 (0,57)
-      for i2 ((floormod(ax0.outer.outer.ax1.outer.outer.fused.ax2.outer.outer.fused, 4)*14),15)
-        for i3 (0,64)
-          PaddedInput = ...
-    for ax3.0 (0,2)
-      for ax2.1 (0,7)
-        for ax3.1 (0,8)
-          Conv2dOutput auto_unroll: 16
-          for rx.0 (0,3)
-            for rc.0 (0,4)
-              for ry.1 (0,3)
-                for rc.1 (0,16)
-                  for yy.3 (0,28)
-                    vectorize ff.3 (0,8)
-                      Conv2dOutput = ...
-          for ax1.2 (0,28)
-            vectorize ax3.2 (0,8)
-              T_relu = ...
-  ```
+   ```shell
+   python tlp_preprocess_dataset_gpu.py
+   ```
 
 
-## License
-The code is licensed under an [Apache-2.0](LICENSE) license.  
-The dataset is licensed under a [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) license.
+## Train a TLP cost model
+
+#### CPU 
+
+1. Make dataset.
+
+   ```shell
+   rm -f dataset
+   ln -s dataset_cpu dataset
+   
+   # This will take a long time. If you are just trying it out, you can set `--files_cnt` to a small value, such as 100.
+   python tlp_make_dataset.py --files_cnt=2308 --json_files_path=dataset/measure_records/i7 --platform=llvm
+   
+   # python tlp_make_dataset.py --files_cnt=2308 --json_files_path=dataset/measure_records/platinum-8272 --platform=llvm  
+   # python tlp_make_dataset.py --files_cnt=2308 --json_files_path=dataset/measure_records/e5-2673 --platform=llvm
+   # python tlp_make_dataset.py --files_cnt=2308 --json_files_path=dataset/measure_records/epyc-7452 --platform=llvm
+   # python tlp_make_dataset.py --files_cnt=2308 --json_files_path=dataset/measure_records/graviton2 --platform=llvm
+   ```
+
+2. Train. Then pick a model based on the validation set loss.
+
+   ```shell
+   CUDA_VISIBLE_DEVICES=0,1,2,3 python tlp_train.py --save_folder=tlp_i7 --dataset=tlp_dataset_i7_2308_train_and_val.pkl
+   ```
+
+3. Eval
+
+   ```shell
+   python tlp_eval.py --test_dataset_name=tlp_dataset_i7_2308_test.pkl --load_name=tlp_i7/tlp_model_43.pkl
+   ```
+
+#### GPU 
+
+1. Make dataset.
+
+   ```shell
+   rm -f dataset
+   ln -s dataset_gpu dataset
+   
+   python tlp_make_dataset.py --files_cnt=2308 --json_files_path=dataset/measure_records/t4 --platform=cuda
+   
+   # python tlp_make_dataset.py --files_cnt=2308 --json_files_path=dataset/measure_records/k80 --platform=cuda
+   ```
+
+2. Train. Then pick a model based on the validation set loss.
+
+   ```shell
+   CUDA_VISIBLE_DEVICES=0,1,2,3 python tlp_train.py --save_folder=tlp_t4 --dataset=tlp_dataset_t4_2308_train_and_val.pkl --step_size=40 --fea_size=20
+   ```
+
+3. Eval
+
+   ```shell
+   python tlp_eval.py --test_dataset_name=tlp_dataset_t4_2308_test.pkl --load_name=tlp_t4/tlp_model_45.pkl --platform=cuda
+   ```
+
+## Train a MTL-TLP cost model
+
+#### CPU 
+
+1. Make dataset
+
+   ```shell
+   rm -f dataset
+   ln -s dataset_gpu dataset
+   
+   python mtl_tlp_make_dataset.py --union_datasets tlp_dataset_platinum_8272_2308_train_and_val.pkl \
+                                                   tlp_dataset_e5_2673_2308_train_and_val.pkl \
+                                                   tlp_dataset_epyc_7452_2308_train_and_val.pkl \
+                                                   tlp_dataset_graviton2_2308_train_and_val.pkl \
+                                                   tlp_dataset_i7_2308_train_and_val.pkl
+   ```
+
+   GPU dataset
+
+   ```shell
+   python mtl_tlp_make_dataset.py --union_datasets tlp_dataset_k80_2308_train_and_val.pkl \
+   																								tlp_dataset_t4_2308_train_and_val.pkl
+   ```
+
+2. Train. Then pick a model based on the validation set loss.
+
+   ```shell
+   CUDA_VISIBLE_DEVICES=0,1,2,3 python mtl_tlp_train.py --save_folder=mtl_tlp_i7 --dataset=mtl_tlp_dataset_5.pkl --mtl_head_list=4,3,2,1,0
+   ```
+
+3. Eval
+
+   ```shell
+   python tlp_eval.py --test_dataset_name=tlp_dataset_i7_2308_test.pkl --load_name=mtl_tlp_i7/mtl_tlp_model_49.pkl
+   ```
+
+#### GPU 
+
+1. Make dataset
+
+   ```shell
+   rm -f dataset
+   ln -s dataset_gpu dataset
+   
+   python mtl_tlp_make_dataset.py --union_datasets tlp_dataset_k80_2308_train_and_val.pkl \
+   																								tlp_dataset_t4_2308_train_and_val.pkl
+   ```
+
+2. Train. Then pick a model based on the validation set loss.
+
+   ```shell
+   CUDA_VISIBLE_DEVICES=0,1,2,3 python mtl_tlp_train.py --save_folder=mtl_tlp_t4 --dataset=mtl_tlp_dataset_2.pkl --mtl_head_list=1,0 --step_size=40 --fea_size=20
+   ```
+
+3. Eval
+
+   ```shell
+   python tlp_eval.py --test_dataset_name=tlp_dataset_t4_2308_test.pkl --load_name=mtl_tlp_t4/mtl_tlp_model_13.pkl --platform=cuda
+   ```
+
+## Use the model for search
+
+#### CPU
+
+```shell
+rm -f dataset
+ln -s dataset_cpu dataset
+
+# TLP cost model
+python tune_network.py --network=resnet_50 --n-trials=2000 --cost-model=tlp-no-update --load-model=tlp_i7/tlp_model_43.pkl --target='llvm -mcpu=core-avx2 -model=i7' --num_measures_per_round=10
+# MTL-TLP cost model
+python tune_network.py --network=resnet_50 --n-trials=2000 --cost-model=tlp-no-update --load-model=mtl_tlp_i7/mtl_tlp_model_49.pkl --target='llvm -mcpu=core-avx2 -model=i7' --num_measures_per_round=10
+```
+
+#### GPU
+
+```shell
+rm -f dataset
+ln -s dataset_gpu dataset
+
+# TLP cost model
+python tune_network.py --network=resnet_50 --n-trials=2000 --cost-model=tlp-no-update --load-model=tlp_t4/tlp_model_45.pkl --target='cuda -model=t4' --num_measures_per_round=10 --step_size=40 --fea_size=20
+# MTL-TLP cost model
+python tune_network.py --network=resnet_50 --n-trials=2000 --cost-model=tlp-no-update --load-model=mtl_tlp_t4/mtl_tlp_model_13.pkl --target='cuda -model=t4' --num_measures_per_round=10 --step_size=40 --fea_size=20
+```
+
+## More experiments
+
+1. fine-tuning
+
+   ```shell
+   CUDA_VISIBLE_DEVICES=0,1,2,3 python tlp_fine_tune.py --save_folder=tlp_i7_fine_tune --dataset=tlp_dataset_i7_2308_train_and_val.pkl --pre_train_model=tlp_platinum_8272/tlp_model_34.pkl
+   ```
+
+2. gpt
+
+   The source code is a fork of this [commit](https://github.com/karpathy/minGPT/tree/3ed14b2cec0dfdad3f4b2831f2b4a86d11aef150) of [minGPT](https://github.com/karpathy/minGPT).
+
+   ```shell
+   cd minGPT
+   # 1. use unlablled data to train the gpt model
+   CUDA_VISIBLE_DEVICES=0,1,2,3 python train_gpt.py --dataset=tlp_dataset_i7_2308_train_and_val.pkl --train_size_per_gpu=3072
+   # 2. use labbled data to train the gpt and downstream model
+   CUDA_VISIBLE_DEVICES=0,1,2,3 python tlp_train.py --save_folder=tlp_gpt --dataset=tlp_dataset_i7_2308_train_and_val.pkl --attention_class=gpt --data_cnt=500 --train_size_per_gpu=384 --val_size_per_gpu=384
+   # 3. eval
+   python tlp_eval.py --test_dataset_name=tlp_dataset_i7_2308_test.pkl --load_name=tlp_gpt/tlp_model_29.pkl
+   ```
+
+3. bert
+
+   ```shell
+   # 1. make dataset for bert
+   python tlp_make_dataset_bert.py --json_files_path=dataset/measure_records/i7
+   cd bert
+   # 2. use unlablled data to train the bert model
+   CUDA_VISIBLE_DEVICES=0,1,2,3 python train_bert.py --datasets=tlp_dataset_bert_platinum_8272_2308_train_and_val.pkl --batch_size=1152
+   # 3. use labbled data to train the bert and downstream model
+   CUDA_VISIBLE_DEVICES=0,1,2,3 python tlp_train.py --save_folder=tlp_bert --dataset=tlp_dataset_bert_i7_2308_train_and_val.pkl --attention_class=bert --data_cnt=500 --train_size_per_gpu=384 --val_size_per_gpu=384
+   # 4. eval
+   python tlp_eval.py --test_dataset_name=tlp_dataset_bert_i7_2308_test.pkl --load_name=tlp_bert/tlp_model_33.pkl
+   ```
+
+   
