@@ -5,6 +5,7 @@ This repo is based on a fork of [tenset](https://github.com/tlc-pack/tenset).
 ## Installation
 
 Build and install this repo following the [guide](https://github.com/zhaiyi000/tlp/blob/main/docs/install/from_source.rst).
+Version informations can refer to [here](version.log).
 
 ## Download the TenSet and TenSet-TLP datasets
 
