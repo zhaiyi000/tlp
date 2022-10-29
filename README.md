@@ -200,4 +200,6 @@ python tune_network.py --network=resnet_50 --n-trials=2000 --cost-model=tlp-no-u
    python tlp_eval.py --test_dataset_name=tlp_dataset_bert_i7_2308_test.pkl --load_name=tlp_bert/tlp_model_33.pkl
    ```
 
-   
+## License
+The code is licensed under an [Apache-2.0](LICENSE) license.  
+The TenSet-TLP dataset is licensed under a [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) license.
