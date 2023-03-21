@@ -2,6 +2,8 @@
 
 This repo is based on a fork of [tenset](https://github.com/tlc-pack/tenset).
 
+[tlp slides](./tlp%20slides.pptx)
+
 ## Installation
 
 Build and install this repo following the [guide](https://github.com/zhaiyi000/tlp/blob/main/docs/install/from_source.rst).
